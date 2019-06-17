@@ -1,0 +1,11 @@
+Package: fd.maxent
+Type: Package
+Title: Fit Maximum Entropy Distributions
+Version: 0.1
+Date: 2018-05-01
+Author: K. Weinert
+Description: Provides a S3 framework for defining and solving maximum entropy distribution problems.
+License: GPL (>= 3)
+Depends:
+    BB, Matrix, RSQLite, bigalgebra, lpSolveAPI
+LazyLoad: yes
