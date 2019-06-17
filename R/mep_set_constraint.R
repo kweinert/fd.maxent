@@ -10,7 +10,6 @@ mep_set_constraint <- function(mep, j, xt, rhs, indices=NULL) {
 	}
 	
 	if(mep$control$storage[1] %in% c("dense", "sparse")) {
-		# if(j==16) browser()
 		mep$Amat[indices,j] <- xt
 	} else { # sqlite	
 		new <- data.frame(
@@ -27,12 +26,11 @@ mep_set_constraint <- function(mep, j, xt, rhs, indices=NULL) {
 		Acol <- rep(0, mep$nvar)
 		Acol[indices] <- xt
 		optfun <- function(lambda) {
-			# browser()
 			y <- exp(Acol * lambda)
 			Z <- sum(y)
 			sum(Acol*as.numeric(y))/Z - rhs
 		}
-		sol <- uniroot(optfun, interval=c(-10000, 500/max(Acol)), tol=mep$control$tol) # exp(710)==Inf
+		sol <- uniroot(optfun, interval=c(-708, 708/max(Acol)), tol=mep$control$tol) # exp(710)==Inf
 		mep$lambda[j] <- sol$root
 	}
 	mep$support[indices] <- mep$support[indices] + 1

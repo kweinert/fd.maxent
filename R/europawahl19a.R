@@ -70,8 +70,7 @@ europawahl19 <- function(
 	solution <- head(get.variables(lprec), -1)
 	solution <- sapply(slice(solution, n-1), FUN=sum)
 	if(verbose) message("lp solved, entropy=", sum(-log(solution)*solution))
-	# entropy <- 
-	
+
 	# prepare output
 	ans <- vec2df(prob, solution)
 	if(verbose) message("maxent distribution calculated")

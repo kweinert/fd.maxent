@@ -2,10 +2,17 @@ Package: fd.maxent
 Type: Package
 Title: Fit Maximum Entropy Distributions
 Version: 0.1
-Date: 2018-05-01
+Date: 2019-06-17
 Author: K. Weinert
 Description: Provides a S3 framework for defining and solving maximum entropy distribution problems.
+    See N. Agmon, Y. Alhassid, R. D. Levine, An algorithm for finding the distribution of maximal entropy, 
+    Journal of Computational Physics,30 , 250-258, 1979 and A. Golan, G. Judge, D. Miller, 
+    Maximum entropy econometrics: robust estimation with limited data, Wiley, New York, 1996 and
+    B. Chen, J. Hu, Y.Zhu, Computing maximum entropy densities: A hybrid approach, 
+    Signal Processing: An International Journal, 4(2), 114-122, 2010 and D. Ormoneit, H. White, 
+    An efficient algorithm to compute maximum entropy densities, Econometrics reviews, 18(2), 127-140, 1999, and 
+    Aharon Ben-Tal, Arkadi Nemirovski: Lectures on Modern Convex Optimizsation
 License: GPL (>= 3)
 Depends:
-    BB, Matrix, RSQLite, bigalgebra, lpSolveAPI
+    BB, Matrix, RSQLite, lpSolveAPI
 LazyLoad: yes
