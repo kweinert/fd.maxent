@@ -24,7 +24,8 @@ mep_solve_LP <- function(mep, verbose=TRUE) {
   # solve
   status <- solve(lprec)
   if(status!=0) stop(paste("no solution found, error code ", status)) ### no solution? halt
-  solution <- head(get.variables(lprec), -1)
-  solution <- sapply(slice(solution, n-1), FUN=sum)
-  if(verbose) message("lp solved, entropy=", sum(-log(solution)*solution))
+  mep$prob <- head(get.variables(lprec), -1)
+  mep$prob <- sapply(slice(mep$prob, n-1), FUN=sum)
+  if(verbose) message("lp solved, entropy=", sum(-log(mep$prob)*mep$prob))
+  return(mep)
 }
