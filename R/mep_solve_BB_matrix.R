@@ -13,6 +13,5 @@ mep_solve_BB_matrix <- function(mep, verbose=TRUE) {
     mep$prob  <- mep$prob / sum(mep$prob)
     mep$lambda <- optres$par
   }
-  names(mep$prob) <- mep$varnames
   return(mep)
 }

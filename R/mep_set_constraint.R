@@ -5,7 +5,6 @@ mep_set_constraint <- function(mep, j, xt, rhs, indices=NULL) {
 		indices <- which(xt!=0)
 		xt <- xt[indices]
 	} else {
-		if(is.character(indices)) indices <- which(mep$varnames %in% indices) # TODO: test that
 		if(length(indices)>1 && length(xt)==1) xt <- rep(xt, length(indices))
 	}
 	

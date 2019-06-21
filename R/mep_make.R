@@ -9,17 +9,21 @@
 #'
 #' @param nvar the number of variables
 #' @param ncons the number of constraints
-#' @param varnames optional, a character vector of length(nvar) specifing the variable names
+#' @param varinfo optional, a character vector of length(nvar) specifing the variable names
 #' @param control optional, named list of control variables. See details.
 #' @return an S3 object of class MaxEntProblem
 #' @export
-mep_make <- function(nvar, ncons, varnames=NULL, control=list()) {
-	ctrl <- list(storage=c("dense", "sparse", "sqlite"), method=c("BB", "LP"), init=c("runif", "guess"), breaks=5, maxit=25, tol=.Machine$double.eps^0.25, dbname="")
+mep_make <- function(nvar, ncons, varinfo=NULL, control=list()) {
+	ctrl <- list(storage=c("dense", "sparse", "sqlite"), method=c("BB", "LP"), init=c("runif", "guess"), maxit=25, tol=.Machine$double.eps^0.25, dbname="")
 	diffctrl <- setdiff(names(control), names(ctrl))
 	if(length(diffctrl)>0) stop("unknown control name(s): ", paste(diffctrl, collapse=", "))
-	if(!is.null(varnames) && length(varnames)!=nvar) stop("nvar and length(varnames) do not match.")
+	if(!is.null(varinfo) && length(varinfo)!=nvar) stop("nvar and length(varinfo) do not match.")
 	for (n in names(control)) ctrl[[n]] <- control[[n]]
-	ans <- list(nvar=nvar, ncons=ncons, Amat=NULL, bvec=NULL, support=NULL, prob=NULL, lambda=NULL, control=ctrl, status=-1) # -1 unsolved
+	if(!"tol" %in% names(control) && ctrl[["method"]][1]=="LP") ctrl[["tol"]] <- 0.00001
+	ans <- list(Amat=NULL, bvec=NULL, support=NULL, prob=NULL, lambda=NULL, status=-1) # -1 unsolved
+	ans[["nvar"]] <- nvar 
+	ans[["ncons"]] <- ncons  
+	ans[["control"]] <- ctrl
 	if(ans$control$storage[1]=="sqlite") {
 		if(ans$control$dbname=="") ans$control$dbname <- tempfile(fileext=".db")
 		ans$Amat <- dbConnect(RSQLite::SQLite(), dbname=ans$control$dbname)
@@ -31,7 +35,7 @@ mep_make <- function(nvar, ncons, varnames=NULL, control=list()) {
     ans$Amat <- sparseMatrix(i=1, j=1, x=0, dims=c(nvar, ncons))
 	else stop("unknown storage method: ", ans$control$storage)
   ans$bvec <- rep(NA, ncons)
-  ans$varnames <- varnames
+  ans$varinfo <- varinfo
   ans$lambda <- rep(NA, ncons)
   ans$support <- rep(0, nvar)
   ans$prob <- rep(NA, nvar)

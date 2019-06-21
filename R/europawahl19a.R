@@ -1,4 +1,4 @@
-europawahl19 <- function(
+europawahl19a <- function(
 	breaks=c(seq(.Machine$double.eps, 0.01, length.out=10), seq(0.013, 0.05, length.out=10), seq(0.06, 0.368, length.out=10), 1), 
 	browse=TRUE, verbose=TRUE
 ) {
