@@ -14,7 +14,15 @@
 #' @return an S3 object of class MaxEntProblem
 #' @export
 mep_make <- function(nvar, ncons, varinfo=NULL, control=list()) {
-	ctrl <- list(storage=c("dense", "sparse", "sqlite"), method=c("BB", "LP"), init=c("runif", "guess"), maxit=25, tol=.Machine$double.eps^0.25, dbname="")
+	ctrl <- list(
+		storage=c("dense", "sparse", "sqlite"), 
+		method=c("BB", "LP"), 
+		init=c("runif", "guess"), 
+		maxit=25, 
+		tol=.Machine$double.eps^0.25, 
+		n_knots=4, 
+		dbname=""
+	)
 	diffctrl <- setdiff(names(control), names(ctrl))
 	if(length(diffctrl)>0) stop("unknown control name(s): ", paste(diffctrl, collapse=", "))
 	if(!is.null(varinfo) && length(varinfo)!=nvar) stop("nvar and length(varinfo) do not match.")

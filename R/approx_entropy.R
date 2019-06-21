@@ -1,6 +1,9 @@
-approx_entropy <- function(breaks=seq(from=.Machine$double.eps, to=1, length.out=4), fig=FALSE) {
-
+approx_entropy <- function(breaks=seq(from=.Machine$double.eps, to=1, length.out=4), browse=FALSE, fig=FALSE) {
+	stopifnot(all(is.finite(c(breaks,-log(breaks)*breaks)))) 
+	stopifnot(all(!is.na(c(breaks,-log(breaks)*breaks)))) 
+	if(browse) browser()
 	linear_approx <- approxfun(x=breaks, y=-log(breaks)*breaks)
+	
 	slopes <- (linear_approx(tail(breaks,-1))-linear_approx(head(breaks,-1))) / diff(breaks)
 	
 	if(fig) {

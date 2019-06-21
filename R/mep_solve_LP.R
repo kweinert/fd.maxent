@@ -1,11 +1,11 @@
 mep_solve_LP <- function(mep, verbose=TRUE) {
-	
-	n_knots <- 4
+	n_knots <- mep$control$n_knots
 	n_var <- mep[["nvar"]]
 	n_cons <- mep[["ncons"]]
 	b_vec <- mep[["bvec"]]
+	minp <- 0
 	best_prob <- rep(1/length(n_var), n_var)
-	best_entr <- sum(-log(best_prob)*prob)
+	best_entr <- sum(-log(best_prob)*best_prob)
 	
 	# approximate entropy
 	knot_info <- lapply(rep(n_knots, n_var), FUN=function(x) approx_entropy(
@@ -17,7 +17,7 @@ mep_solve_LP <- function(mep, verbose=TRUE) {
 	lp.control(lprec, sense="max")
 	obj <- sapply(knot_info, function(x) x[["slopes"]])
 	dim(obj) <- NULL
-	set.objfn(lprec, obj=c(obj,10)) # objective function
+	set.objfn(lprec, obj=c(obj,minp)) # objective function
 	if(verbose) message("lp objective set.")
 	
 	# constraint types
@@ -34,7 +34,7 @@ mep_solve_LP <- function(mep, verbose=TRUE) {
 	# rhs 
 	rhs <- sapply(knot_info, function(x) x$breaks)
 	rhs <- apply(rhs, 2, diff)
-	set.rhs(lprec, b=c(b_vec, rhs, rep(0, times=n_var)))
+	set.rhs(lprec, b=c(b_vec, rhs, rep(.Machine$double.eps*10, times=n_var)))
 	if(verbose) message("rhs set.")
 	
 	# mep constraints
@@ -50,26 +50,28 @@ mep_solve_LP <- function(mep, verbose=TRUE) {
 		set.row(
 			lprec, 
 			row=n_cons+n_var*(n_knots-1)+j, 
-			xt=c(rep(1, n_knots-1), -1), 
-			indices=c(seq((j-1)*(n_knots-1)+1, length.out=n_knots-1), n_var*(n_knots-1)+1)
+			xt=c(rep(1, n_knots-1)), 
+			indices=c(seq((j-1)*(n_knots-1)+1, length.out=n_knots-1))
 		) # min p_i
 	}
 	if(verbose) message("additional variable min p_i defined.")
 	if(verbose) message("initial lp set up.")
 
 	# helper function to find new knots
-	calc_breaks <- function(ki, sol) {
-		new_to <- ki$breaks[sum(sol>0)+1]
-		if(new_to<ki$breaks[n_knots]) 
+	calc_breaks <- function(ki, sol, browse=FALSE) {
+		new_to <- ki$breaks[max(c(sum(sol>0)+1,2))]
+		ans <- if(new_to<ki$breaks[n_knots]) 
 			seq(from=ki$breaks[1], to=new_to, length.out=n_knots)
-		else
-			c(.Machine$double.eps, seq(from=ki$breaks[2], to=new_to, length.out=n_knots-1))
+		else 
+			c(.Machine$double.eps, seq(from=ki$breaks[3], to=new_to, length.out=n_knots-1))
+		if(browse) browser()
+		return(ans)
 	}
 	
 	# narrow the intervals 
 	iter <- 1
 	old_entropy <- 0
-	old_prob_summed <- rep(NA, length(n_var))
+	old_prob_summed <- rep(NA, n_var)
 	repeat {
 		# solve first
 		status <- solve(lprec)
@@ -83,7 +85,8 @@ mep_solve_LP <- function(mep, verbose=TRUE) {
 		prob <- head(get.variables(lprec), -1)
 		prob_sliced <- slice(prob, n_knots-1)
 		prob_summed <- sapply(prob_sliced, FUN=sum)
-		entropy <- sum(-log(prob_summed)*prob_summed)
+		idx <- which(prob_summed>0)
+		entropy <- sum(-log(prob_summed[idx])*prob_summed[idx])
 		if(verbose) message("entropy=", entropy)
 		
 		# finished?
@@ -106,8 +109,8 @@ mep_solve_LP <- function(mep, verbose=TRUE) {
 		
 		# new breaks
 		for (i in seq(n_var)) {
-			breaks <- calc_breaks(knot_info[[i]], prob_sliced[[i]])
-			knot_info[[i]] <- approx_entropy(breaks=breaks)
+			breaks <- calc_breaks(knot_info[[i]], prob_sliced[[i]], browse=FALSE)
+			knot_info[[i]] <- approx_entropy(breaks=breaks, browse=FALSE)
 		}
 		if(verbose) message("new breaks calculated.")
 		
@@ -115,7 +118,7 @@ mep_solve_LP <- function(mep, verbose=TRUE) {
 		obj <- sapply(knot_info, function(x) x[["slopes"]])
 		dim(obj) <- NULL
 		gap <- best_entr - entropy
-		set.objfn(lprec, obj=c(obj,100)) # objective function
+		set.objfn(lprec, obj=c(obj,minp)) # objective function
 		if(verbose) message("objective updated.")
 		  
 		# new rhs
