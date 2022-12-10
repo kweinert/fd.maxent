@@ -1,10 +1,16 @@
-# internal
-# solves for one constraint
+#' Solve Maximum entropy Problem with one constraint
+#'
+#' Internal function, use mep_solve instead.
+#'
+#' @param mep an object of class "MaxEntProblem"
+#' @param i integer, index of the constraint
+#' @param only_lambda logical, return lambda only (default TRUE)
+#' @return an object of class "MaxEntProblem" (only_lambda==FALSE) or numeric
 mep_solve_one <- function(mep, i, only_lambda=TRUE) {
   ans <- rep(NA, mep$nvar)
   if(mep$control$storage[1]=="sqlite") {
     Acol <- rep(0, mep$nvar)
-    dat <- dbGetQuery(mep$Amat, paste(
+    dat <- RSQLite::dbGetQuery(mep$Amat, paste(
       "select i,x from Amat",
       "where j=",i
     ))

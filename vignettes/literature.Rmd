@@ -1,0 +1,20 @@
+---
+title: "Literature"
+author: "Karsten W."
+date: "2022-12-10"
+output: html_document
+vignette: >
+  %\VignetteIndexEntry{Literature}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## N. Agmon, Y. Alhassid, R. D. Levine, An algorithm for finding the distribution of maximal entropy, Journal of Computational Physics,30 , 250-258, 1979 
+
+## A. Golan, G. Judge, D. Miller, Maximum entropy econometrics: robust estimation with limited data, Wiley, New York, 1996 
+
+## B. Chen, J. Hu, Y.Zhu, Computing maximum entropy densities: A hybrid approach, Signal Processing: An International Journal, 4(2), 114-122, 2010 
+
+## D. Ormoneit, H. White, An efficient algorithm to compute maximum entropy densities, Econometrics reviews, 18(2), 127-140, 1999
+
+## Aharon Ben-Tal, Arkadi Nemirovski: Lectures on Modern Convex Optimizsation

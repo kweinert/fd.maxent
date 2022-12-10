@@ -34,13 +34,13 @@ mep_make <- function(nvar, ncons, varinfo=NULL, control=list()) {
 	ans[["control"]] <- ctrl
 	if(ans$control$storage[1]=="sqlite") {
 		if(ans$control$dbname=="") ans$control$dbname <- tempfile(fileext=".db")
-		ans$Amat <- dbConnect(RSQLite::SQLite(), dbname=ans$control$dbname)
-		dbExecute(ans$Amat, "CREATE TABLE IF NOT EXISTS Amat (i INTEGER NOT NULL, j INTEGER NOT NULL, x DOUBLE NOT NULL, PRIMARY KEY (i, j));")
-		dbExecute(ans$Amat, "CREATE INDEX IF NOT EXISTS idx_Amat on Amat(i, j);")
+		ans$Amat <- RSQLite::dbConnect(RSQLite::SQLite(), dbname=ans$control$dbname)
+		RSQLite::dbExecute(ans$Amat, "CREATE TABLE IF NOT EXISTS Amat (i INTEGER NOT NULL, j INTEGER NOT NULL, x DOUBLE NOT NULL, PRIMARY KEY (i, j));")
+		RSQLite::dbExecute(ans$Amat, "CREATE INDEX IF NOT EXISTS idx_Amat on Amat(i, j);")
 	} else if(ans$control$storage[1]=="dense") 
 		ans$Amat <- matrix(0, nrow=nvar, ncol=ncons)
 	else if(ans$control$storage[1]=="sparse") 
-    ans$Amat <- sparseMatrix(i=1, j=1, x=0, dims=c(nvar, ncons))
+    ans$Amat <- Matrix::sparseMatrix(i=1, j=1, x=0, dims=c(nvar, ncons))
 	else stop("unknown storage method: ", ans$control$storage)
   ans$bvec <- rep(NA, ncons)
   ans$varinfo <- varinfo

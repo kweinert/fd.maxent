@@ -1,0 +1,100 @@
+---
+title: "Estimating a Discrete Distribution"
+author: "Karsten W."
+date: "2022-12-10"
+output: html_document
+vignette: >
+  %\VignetteIndexEntry{Simple}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## A First Example
+
+Suppose we want to estimate a probability distribution `p` with ten outcomes.
+Somehow we know that `p[1]==0.5` and `p[2]==0.2`. What would be a reasonable
+assigment for `p[3:10]`? The maximum entropy principle would assign these other
+eight outcomes each the same probability. So the theoretical solution would be
+
+```{r theory, echo=TRUE}
+theory <- c(0.5, 0.2, rep(0.3/8,8))
+```
+
+No need to use a numerical solver here. But let's do it anyway.
+
+First, we define the maximum entropy problem. We have 10 outcomes (columns) and
+three constraints: one for `p[1]`, one for `p[2]`, and one normalization requirement,
+that the sum adds to one. So we call
+
+```{r setup1, echo=TRUE}
+library(fd.maxent, quietly=TRUE)
+ctrl <- list(storage="dense", method="LP", maxit=25, tol=0.0001)
+mep <- mep_make(nvar=10, ncons=3, control=ctrl)
+```
+
+Here, `ctrl` specifies the storage backend (dense matrix), the algorithm to apply (a sequence of at most 25 LP problems), and the tolerance as the stopping criterium. We skip the discussion of these parameters for later. The `mep_make` call creates an S3 object of the given dimensions.
+
+Next, we add the constraints to our problem. The notation is similar to (and inspired by) the package `lpSolveAPI`:
+
+```{r constraints1, echo=TRUE}
+mep <- mep_set_constraint(mep, 1, xt=1, rhs=0.5, indices=1)
+mep <- mep_set_constraint(mep, 2, xt=1, rhs=0.2, indices=2)
+mep <- mep_set_constraint(mep, 3, xt=rep(1,10), rhs=1)
+``` 
+
+Here, the second argument specifies the row of the constraint matrix and `indices` to the column of the constraint matrix. All columns not specified in `indices` are set to zero. The parameter `xt` refers to the value to that. In this case, it is 1 and gets evaluated to
+the probability we wish to estimate. The `rhs` parameters specify the required probability masses.
+
+Now that the problem has been fully specified, we can solve the problem:
+
+```{r solve1, echo=TRUE}
+mep <- mep_solve(mep, verbose=FALSE)
+solution <- mep_getvars(mep)
+mep_dispose(mep)
+``` 
+
+Let's compare the numerical solution to the theoretical solution:
+
+```{r plot1, echo=TRUE}
+barplot(cbind(theory, solution), beside=TRUE, col="white")
+``` 
+
+Looks quite as expected, though not perfect.
+
+
+## The Binomial Distribution
+
+It is known that the maximum entropy distribution with fixed variance is the binomial distribution. Let's try and "prove" it numerically.
+
+```{r theory_binom, echo=TRUE}
+n=40
+p=0.3
+theory <- dbinom(1:n, size=n, prob=p)
+mu <- n*p
+variance <- n*p*(1-p)
+``` 
+
+So we have a binomial distribution with 40 outcomes and `p=0.3`. The expectation and variance is then known as shown above. Can we recover it with the maximum entropy algorithm?
+
+```{r setup_binom, echo=TRUE}
+ctrl <- list(storage="dense", method="BB", maxit=100, tol=.Machine$double.eps^0.25)
+mep <- mep_make(nvar=n, ncons=2, control=ctrl)
+mep <- mep_set_constraint(mep, j=1, xt=(1:n-mu)^2, rhs=variance)
+mep <- mep_set_constraint(mep, j=2, xt=rep(1,n), rhs=1)
+``` 
+
+Again, the `ctrl` is to be discussed later.
+The right-hand side `rhs` now equals the variance, and the weights are set accordingly to the definition of variance.
+
+Let's solve this and compare to the theoretical solution:
+
+```{r numeric_binom, echo=TRUE}
+mep <- mep_solve(mep, verbose=FALSE)
+solution <- mep_getvars(mep)
+mep_dispose(mep)
+plot(solution, type="l", col="darkred", ylim=c(0, max(c(theory, solution))*1.1))
+lines(x=1:n, y=theory, col="blue")
+legend("topright", legend=c("Solution", "Theory"), fill=c("darkred", "blue"), border="white", bty="n")
+``` 
+	
+This looks good, but if you play with `n` and `p` and the `method` parameter to `ctrl`, you will discover that the quality of the fit varies dependent on the problem and the algorithm used.

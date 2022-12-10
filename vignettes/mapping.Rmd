@@ -1,0 +1,76 @@
+---
+title: "Linearizing a multidimensional distribution"
+author: "Karsten W."
+date: "2022-12-10"
+output: html_document
+vignette: >
+  %\VignetteIndexEntry{Mapping}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+Oftentimes, the probability distribution we wish to estimate with the maximum entropy principle is multidimensional. This distribution is represented in the algorithms as one numerical vector. One challenge -- or at least annoying and error-prone task -- is to map a subset of the probability distribution to this vector.
+
+The `fd.maxent` package offers a few helper functions to make this easier. This vignette explains the ideas and the usage of these functions. The "europawahl 2019" problem is used as example. While there is a separate vignette showing how to apply the maximum entropy solver, this vignette only looks at the linearizing topic. 
+
+## Multidimensional Probability Distribution Example: Voting
+
+Assume we would like to investigate voter's behaviour according to some sociodemographic characteristics. (Please note I'm not a political scientist, this example is purely for showing the concept of the functions.) 
+
+Then we would be interested in a probability distribution that is the Cartesian product of
+the voter's gender, voter's education and the party voted for. Within this package, you could represent this distribution thus:
+
+```{r defs, echo=TRUE}
+library(fd.maxent)
+gender <- set("female", "male")
+edu <- set("Hochschule", "Abitur", "mittlere Reife", "Hauptschule")
+voted_for <- set("CDU/CSU", "Gr\u00fcne", "SPD", "AfD", "Other", "Invalid", "Not voted")
+prob <- variab(vote=voted_for, mf=gender, edu=edu)
+```
+
+The function `set` is defined in the `fd.maxent` package and defines one dimension of the probabilty distribution. Only `character` arguments are allowed here.
+
+The `edu` (education) and `voted_for` (parties) dimensions are specific to the German voting system.
+
+The joint distribution is defined with the `variab` function. Since it is the Cartesian product of its dimensions, it has `2x4x7==56` cells. This can be verified via `length`:
+
+```{r len, echo=TRUE}
+length(prob)
+```
+
+So a constraint matrix for a maximum entropy problem would have `56` columns. 
+
+## Accessing one Cell
+
+Assume we know the exact non-voting percentage for female voters with a "Hauptschule" eduction. How could we code this knowledge as a constraint in the maximum entropy problem? We would need which index, 1..56, refers to this specific cell.
+
+This is where the `index` function from the `fd.maxent` package comes in:
+
+```{r cell, echo=TRUE}
+index(prob, vote="Not voted", mf="female", edu="Hauptschule")
+```
+
+So index `49` refers to this specific cell. We can use this information in `mep_set_constraint`.
+
+## Indices for a Margin
+
+Let's take another example. Assume we know the exact non-voting percentage for all males, and have no information how this percentage is distributed across the education dimension. Then we could include a constraint in the maximum entropy problem that uses the sum of a cells with male voters and assign as right-hand side the known percentage.
+
+Again, the `index` can help with that:
+
+```{r margin, echo=TRUE}
+index(prob, vote="Not voted", mf="male")
+```
+
+So, the four cells `14 28 42 56` represent the male non-voters. It must be four because there are four characteristics for education.
+
+## De-Linearizing
+
+Assume we have a result from the solver and want to interpret this result in terms of the probability distribution. Here comes the `vec2df` function into play:
+
+```{r vec2df, echo=TRUE}
+x <- runif(length(prob)) # fake data instead of solver output
+vec2df(prob, x) |> knitr::kable()
+```
+
+

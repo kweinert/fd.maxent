@@ -1,3 +1,10 @@
+#' Solve Maximum entropy Problem for dense/sparse Matrix using Linear Programming
+#'
+#' Internal function, use mep_solve instead.
+#'
+#' @param mep an object of class "MaxEntProblem"
+#' @param verbose logical, diagnostic messages
+#' @return an object of class "MaxEntProblem"
 mep_solve_LP <- function(mep, verbose=TRUE) {
 	n_knots <- mep$control$n_knots
 	n_var <- mep[["nvar"]]
@@ -13,15 +20,15 @@ mep_solve_LP <- function(mep, verbose=TRUE) {
 	))
 	
 	# objective
-	lprec <- make.lp(nrow=n_cons+n_var*(n_knots-1)+n_var, ncol=n_var*(n_knots-1)+1)
-	lp.control(lprec, sense="max")
+	lprec <- lpSolveAPI::make.lp(nrow=n_cons+n_var*(n_knots-1)+n_var, ncol=n_var*(n_knots-1)+1)
+	lpSolveAPI::lp.control(lprec, sense="max")
 	obj <- sapply(knot_info, function(x) x[["slopes"]])
 	dim(obj) <- NULL
-	set.objfn(lprec, obj=c(obj,minp)) # objective function
+	lpSolveAPI::set.objfn(lprec, obj=c(obj,minp)) # objective function
 	if(verbose) message("lp objective set.")
 	
 	# constraint types
-	set.constr.type(
+	lpSolveAPI::set.constr.type(
 		lprec, 
 		types=c(
 			rep("=", times=n_cons), 
@@ -34,20 +41,21 @@ mep_solve_LP <- function(mep, verbose=TRUE) {
 	# rhs 
 	rhs <- sapply(knot_info, function(x) x$breaks)
 	rhs <- apply(rhs, 2, diff)
-	set.rhs(lprec, b=c(b_vec, rhs, rep(.Machine$double.eps*10, times=n_var)))
+	lpSolveAPI::set.rhs(lprec, b=c(b_vec, rhs, rep(.Machine$double.eps*10, times=n_var)))
 	if(verbose) message("rhs set.")
 	
 	# mep constraints
-	for (j in seq(n_cons)) set.row(lprec, row=j, xt=c(rep(mep$Amat[,j], each=(n_knots-1)),0))
+	for (j in seq(n_cons)) 
+		lpSolveAPI::set.row(lprec, row=j, xt=c(rep(mep$Amat[,j], each=(n_knots-1)),0))
 	if(verbose) message("mep constraints transfered to lp.")
 	
 	# segment boundaries
-	for (j in seq(n_var*(n_knots-1))) set.row(lprec, row=n_cons+j, xt=1, indices=j)
+	for (j in seq(n_var*(n_knots-1))) lpSolveAPI::set.row(lprec, row=n_cons+j, xt=1, indices=j)
 	if(verbose) message("segment boundaries contraints added to lp.")
 
 	# try to be > 0
 	for (j in seq(n_var)) {
-		set.row(
+		lpSolveAPI::set.row(
 			lprec, 
 			row=n_cons+n_var*(n_knots-1)+j, 
 			xt=c(rep(1, n_knots-1)), 
@@ -74,7 +82,7 @@ mep_solve_LP <- function(mep, verbose=TRUE) {
 	old_prob_summed <- rep(NA, n_var)
 	repeat {
 		# solve first
-		status <- solve(lprec)
+		status <- lpSolveAPI::solve.lpExtPtr(lprec)
 		if(status!=0) {
 			warning(paste("no solution found, error code ", status)) ### no solution? exit
 			mep$status <- status
@@ -82,7 +90,7 @@ mep_solve_LP <- function(mep, verbose=TRUE) {
 		}
 		
 		# examine solution
-		prob <- head(get.variables(lprec), -1)
+		prob <- head(lpSolveAPI::get.variables(lprec), -1)
 		prob_sliced <- slice(prob, n_knots-1)
 		prob_summed <- sapply(prob_sliced, FUN=sum)
 		idx <- which(prob_summed>0)
@@ -118,13 +126,13 @@ mep_solve_LP <- function(mep, verbose=TRUE) {
 		obj <- sapply(knot_info, function(x) x[["slopes"]])
 		dim(obj) <- NULL
 		gap <- best_entr - entropy
-		set.objfn(lprec, obj=c(obj,minp)) # objective function
+		lpSolveAPI::set.objfn(lprec, obj=c(obj,minp)) # objective function
 		if(verbose) message("objective updated.")
 		  
 		# new rhs
 		rhs <- sapply(knot_info, function(x) x$breaks)
 		rhs <- apply(rhs, 2, diff)
-		set.rhs(
+		lpSolveAPI::set.rhs(
 			lprec, b=rhs,
 			constraints=seq(length(b_vec)+1, length.out=n_var*(n_knots-1))
 		)

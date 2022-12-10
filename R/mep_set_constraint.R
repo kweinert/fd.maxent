@@ -1,4 +1,15 @@
-# set constraint j \in {1...ncons}
+#' Set Constraint in MaxEntProblem
+#'
+#' If mep_solve was called successfully, use this function to extract the 
+#' variables from the solution
+#'
+#' @param mep an object of class "MaxEntProblem"
+#' @param j integer, index of the constraint
+#' @param xt integer, value to set
+#' @param rhs numerical, right-hand side of the constraint
+#' @param indices integer, index/indices of the variables
+#' @return an object of class "MaxEntProblem"
+#' @export
 mep_set_constraint <- function(mep, j, xt, rhs, indices=NULL) {
 	if(missing(j)) stop("missing argument 'j'")
 	if(is.null(indices)) {
@@ -16,9 +27,9 @@ mep_set_constraint <- function(mep, j, xt, rhs, indices=NULL) {
 			j=j,
 			x=xt
 		)
-		insertnew <- dbSendQuery(mep$Amat, "INSERT OR REPLACE INTO Amat VALUES (:i,:j,:x);") # if (i,j) exists, delete them first
-		dbBind(insertnew, params=new) # execute
-		dbClearResult(insertnew)  # release the prepared statement
+		insertnew <- RSQLite::dbSendQuery(mep$Amat, "INSERT OR REPLACE INTO Amat VALUES (:i,:j,:x);") # if (i,j) exists, delete them first
+		RSQLite::dbBind(insertnew, params=new) # execute
+		RSQLite::dbClearResult(insertnew)  # release the prepared statement
 	}
 	mep$bvec[j] <- rhs
 	if(mep$control$init[1]=="guess") { # precompute lambda

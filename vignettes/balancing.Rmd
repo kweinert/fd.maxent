@@ -1,0 +1,149 @@
+---
+title: "Example: Survey Reweighting"
+author: "Karsten W."
+date: "2022-12-10"
+output: html_document
+vignette: >
+  %\VignetteIndexEntry{Reweighting}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## The Problem
+
+This is a problem from my day job. Hence I cannot show the real data here and use synthetic data.
+
+This year I was working in a team doing a program evaluation. So there is grants data and we conduct a survey to collect data that is not in the grant database. As it happens, only 30% or so answer the survey and there is a distortion in the survey data with respect to some structural variables. For instance, SME tend to answer less often than large enterprises.
+
+Now one idea to deal with this problem is to reweigh / post-stratify the survey data so that the rebalanced survey dataset has the same moments as the grant data. What I try in this example is to do this using the maximum entropy principle. I don't use this at work (yet).
+
+The idea stems from a paper and R package `ebal` by [Jens Hainmueller](https://doi.org/10.1093/pan/mpr025). The package `WeightIt` seems to have implemented a similar method using `optim`. Also the famous `survey` package seems to have functions (`postStratify`, `calibrate`) that achieve what I am trying to do here.
+
+## Required Packages
+
+In addition to `fd.maxent`, we need the `knitr` package for displaying tables.
+
+```{r pkg, echo=TRUE}
+library(fd.maxent, quietly=TRUE)
+library(knitr, quietly=TRUE)
+```
+
+## The Data
+
+Let's build some fake grant data. As structural variables we consider the size of the
+grantee, the sector, and the project type. As survey response rate we assume 26%, and we
+simulate a lower response rate from SME.
+
+```{r data, echo=TRUE}
+grants <- data.frame(
+	id=paste0("id",1:1000),
+	size=c(rep("SME", 700), rep("LE", 300)),
+	sector=sample(paste("Sector", LETTERS[1:4]), 1000, replace=TRUE),
+	prj_type=sample(paste("Type", 1:3), 1000, replace=1000)
+)
+svy <- data.frame(
+	id=paste0("id", sample(1:1000, 260, prob=c(rep(0.2, 700), rep(0.4, 300)))),
+	question=sample(c("yes", "maybe", "no", NA), 260, replace=TRUE, prob=c(0.3, 0.3, 0.3, 0.1))
+) |> merge(grants, by="id", all.x=TRUE)
+```
+
+The synthetic data exhibit the mentioned distortion by design:
+
+```{r distort, echo=TRUE}
+table(grants$size) |> proportions()
+table(svy$size) |> proportions()
+```
+
+## Setting up the Problem
+
+We have 260 variables to determine, one for each survey response. The number of constraints is calculated beforehand, see below how they get set.
+
+```{r setup}
+# set up mep
+mep <- mep_make(
+	nvar=260, 
+	ncons=1+3+2+1, 
+	control=list(method="BB")
+)
+```
+
+## Adding Constraints
+
+For each of the structural variables `size`, `sector`, and `prj_type`, we calculate the
+proportions for the levels and create a constraint for each but the last level.
+
+```{r cons1}
+# size
+j <- 1
+props <- table(grants[,"size"]) |> proportions()
+idx <- which(svy[,"size"]=="SME")
+mep <- mep_set_constraint(mep, j=j, xt=1, indices=idx, rhs=props["SME"])
+j <- j + 1
+
+# sector
+props <- table(grants[,"sector"]) |> proportions()
+for (x in head(unique(grants[,"sector"]), -1)) {
+	idx <- which(svy[,"sector"]==x)
+	mep <- mep_set_constraint(mep, j=j, xt=1, indices=idx, rhs=props[x])
+	j <- j + 1
+}
+
+# prj_type
+props <- table(grants[,"prj_type"]) |> proportions()
+for (x in head(unique(grants[,"prj_type"]), -1)) {
+	idx <- which(svy[,"prj_type"]==x)
+	mep <- mep_set_constraint(mep, j=j, xt=1, indices=idx, rhs=props[x])
+	j <- j + 1
+}
+```
+
+The last constraint is the usual normalization constraint. 
+
+```{r cons2}
+# must sum up to 1
+mep <- mep_set_constraint(mep, j=j, xt=rep(1, 260), indices=1:260, rhs=1)
+```
+
+## Solve and Check the Result
+
+Let's run the solver and see what we've got.
+
+```{r solve}
+mep <- mep_solve(mep, verbose=FALSE)
+solution <- mep_getvars(mep)
+mep_dispose(mep)
+svy <- transform(svy, weight=solution*260)
+```
+
+Let's compare the `size` proportions in the weighted survey to `grants`:
+
+```{r check}
+# size
+aggregate(weight~size, svy, function(x) sum(x)/260)
+table(grants[,"size"]) |> proportions()
+```
+
+This looks as expected. The same is true for `sector` and `prj_type` (not shown here). 
+
+How much vary the weights? 
+
+```{r hist}
+summary(svy$weight)
+hist(svy$weight, breaks=30, xlab="Weight", main="")
+```
+
+The weights are not as evenly distributed as I expected.
+
+All in all, the method seems to work. In some simulations some cases get weighted by a factor of 1.8, which seems quite high to me. 
+
+We could also look at the 2-combinations, e.g. "SME in sector A". But I suppose this would increase the variance of the weights even more. 
+
+## All in one step: `balance`
+
+This vignette has shown step by step how to rebalance a dataset using the maximum entropy principle. For convenience, this approach has been wrapped into a function `balance`. So instead of following the steps in this vignette, we could also do:
+
+```{r fun}
+svy <- transform(svy, weight=balance(svy, grants, c("size", "sector", "prj_type")))
+```
+
+Use at your own risk. Especially for small `nrow(svy)` and/or larger distortions this method might fail without clearly indicating it.

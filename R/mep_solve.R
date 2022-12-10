@@ -1,6 +1,7 @@
-#' Solve a MaXEnt problem
+#' Solve a MaxEnt problem
 #' 
 #' Calculates the maximum entropy distribution given the constraints.
+#' If the solver succeedes, the returned object has status==0.
 #'
 #' @param mep an S3 object of class MaxEntProblem. See mep_make
 #' @param verbose if TRUE, extra messages are printed

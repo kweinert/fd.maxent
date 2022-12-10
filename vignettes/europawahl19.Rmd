@@ -1,0 +1,193 @@
+---
+title: "Example: Europawahl 2019"
+author: "Karsten W."
+date: "2022-12-10"
+output: html_document
+vignette: >
+  %\VignetteIndexEntry{Europawahl}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+Estimating a joint probability density from marginal distributions is an ill-posed problem and cannot be solved without additional assumptions. One approach is to calculate the maximum entropy distribution with the margins as contraints. This approach garantuees the "most uninformative" distribution given the constraints as the result. 
+
+This vignette works an example from the European Parliament election 2019. This is not a scientic work, but rather wants to showcase the approach. The example makes heavy use of the `index` function as explained in the `mapping` vignette. Maybe the `mapping` vignette should be read first.
+
+## Required Packages
+
+In addition to `fd.maxent`, we need the `readxl` package for importing the data, the `knitr` package for displaying tables, and `ggplot2` and `ggmosaic` for visualization. 
+
+```{r pkg, echo=TRUE}
+library(fd.maxent, quietly=TRUE)
+library(readxl, quietly=TRUE)
+library(knitr, quietly=TRUE)
+library(ggplot2, quietly=TRUE)
+library(ggmosaic, quietly=TRUE)
+```
+
+## Loading the Dataset
+
+The `fd.maxent` package includes some survey data from the European Parliament election. To load it, the packages `readxl` and `knitr` are required:
+
+```{r data, echo=TRUE}
+fn <- system.file("/extdata/europawahl19.xlsx", package="fd.maxent")
+sheets <- c("tab.votes", "tab.base", "tab.gender.votes", "tab.edu.votes")
+for (x in sheets) {
+	dat <- readxl::read_excel(fn, x)
+	class(dat) <- "data.frame"
+	if("vote_for" %in% colnames(dat)) {
+		rownames(dat) <- dat[,"vote_for"]
+		dat[,"vote_for"] <- NULL
+	}
+	assign(x, dat)
+}
+```
+
+## View the Data {.tabset}
+
+### tab.votes
+
+```{r tab.votes, echo=FALSE}
+kable(tab.votes)
+```
+
+### tab.base
+
+```{r tab.base, echo=FALSE}
+kable(tab.base)
+```
+
+### tab.gender.votes
+
+```{r tab.gender.votes, echo=FALSE}
+kable(tab.gender.votes)
+```
+
+### tab.edu.votes
+
+```{r tab.edu.votes, echo=FALSE}
+kable(tab.edu.votes)
+```
+
+## Setting up the Problem
+
+We use the `set` and `variab` functions to define the probability distribution. More details on these functions can be found in the `mapping` vignette.
+
+The number of constraints is calculated beforehand, see below how they get set.
+
+```{r setup}
+# sets
+parties <- set("CDU/CSU", "Gr\u00fcne", "SPD", "AfD", "Andere", "Ung\u00fcltig", "Nichtw\u00e4hler")
+gender <- set("female", "male")
+edu <- set("Hochschule", "Abitur", "mittlere Reife", "Hauptschule")
+
+# decision variables
+prob <- variab(vote=parties, mf=gender, edu=edu)
+
+# set up mep
+mep <- mep_make(
+	nvar=length(prob), 
+	ncons=length(parties) + (length(gender)*length(edu)) + nrow(tab.gender.votes) + 3*nrow(tab.edu.votes) + 1, 
+	varinfo=prob,
+	control=list(method="LP")
+)
+```
+
+## Adding Constraints
+
+First, we use the information from table `tab.votes` to define constraints.
+
+```{r cons1}
+# vote marginal distributions
+j <- 1
+for (x in parties) {
+	mep <- mep_set_constraint(mep, j=j, xt=1, indices=index(prob, vote=x), rhs=tab.votes[x, "share"])
+	j <- j + 1
+}
+```
+
+Independent from what they voted for (or if they voted at all), some sociodemographic facts like education by gender are known (table `tab.base`) and incorporated as the next constraints.
+
+```{r cons2}
+# edu & gender distribution marginal distributions
+for (x in gender)
+	for (y in edu) {
+		rhs <- tab.base[which(tab.base[,"gender"]==x & tab.base[,"education"]==y),"share"]
+		mep <- mep_set_constraint(mep, j=j, xt=1, indices=index(prob, mf=x, edu=y), rhs=rhs)
+		j <- j + 1
+	}
+```
+
+Next, we use the information from table `tab.gender.votes`. The transformation into constraints is a bit tricky. The information in the table does not contain information on non-voters, invalid votes and votes for other parties. So we take, for example, the male voters that voted for any party other than "SPD" and require that their probability equals (1-voters for "SPD").
+
+```{r cons3}
+# known survey results on gender
+voters <- setdiff(parties, "Nichtw\u00e4hler")
+for (x in rownames(tab.gender.votes)) {
+	prct <- tab.gender.votes[x, "male"] 
+	mep <- mep_set_constraint(mep, j=j, 
+		xt=c(rep(-1+prct, times=length(edu)), rep(prct, times=(length(voters)-1)*length(edu))), 
+		indices=c(index(prob, vote=x, mf="male"), index(prob, vote=setdiff(voters,x), mf="male")), 
+		rhs=0
+	)
+	j <- j + 1
+}
+```
+
+The same trick is applied to use the information from table `tab.edu.votes`. (Now that is applied twice, it's not a trick anymore, but a method.) We leave out the level "mittlere Reife" since there is a NA in the data.
+
+```{r cons4}
+# known survey results on education
+voters <- setdiff(parties, "Nichtw\u00e4hler")
+for (x in rownames(tab.edu.votes)) 
+	for (y in c("Hochschule", "Abitur", "Hauptschule")) { # leave one out "mittlere Reife"
+		prct <- tab.edu.votes[x, y] 
+		mep <- mep_set_constraint(mep, j=j, 
+			xt=c(rep(-1+prct, times=length(gender)), rep(prct, times=(length(voters)-1)*length(gender))), 
+			indices=c(index(prob, vote=x, edu=y), index(prob, vote=setdiff(voters,x), edu=y)), 
+			rhs=0
+		)
+		j <- j + 1
+}
+```
+
+The last constraint is the usual normalization constraint that all probabilities must sum up to one.
+
+```{r cons5}
+# must sum up to 1
+mep <- mep_set_constraint(mep, j=j, xt=rep(1, length(prob)), indices=index(prob), rhs=1)
+```
+
+## Solve and Visualize the Result
+
+Setting up the constraints was the hard work. Now we run the solver and transform the result to a `data.frame`.
+
+```{r solve}
+mep <- mep_solve(mep, verbose=FALSE)
+solution <- mep_getvars(mep)
+mep_dispose(mep)
+```
+
+## View the Solution {.tabset}
+
+### Solution
+
+```{r tab.sol, echo=FALSE}
+kable(solution)
+```
+
+### Visualisation
+
+```{r tab.viz, echo=TRUE}
+solution <- transform(solution, 
+	edu=factor(edu, levels=c("Hochschule", "Abitur", "mittlere Reife", "Hauptschule")),
+	vote=factor(vote, levels=c("CDU/CSU", "Gr\u00fcne", "SPD", "AfD", "Andere", "Ung\u00fcltig", "Nichtw\u00e4hler"))
+)
+ggplot(data = solution) +
+  geom_mosaic(aes(x = product(edu, mf), weight=value, fill=edu)) +
+  facet_wrap( ~ vote, ncol=3)
+```
+
+So now we can use the calculated joint distribution and start to think about the sociodemographics of the voters for each parties. To me, it looks like there are some mistakes in the data, especially looking at the "invalid" votes. But, as said in the beginning, the aim of this vignette was rather to show how to use maximum entropy to get from margins to a joint distribution.
+
+

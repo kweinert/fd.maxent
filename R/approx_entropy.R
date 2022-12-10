@@ -1,3 +1,11 @@
+#' Approximate Entropy
+#'
+#' Internal function for LP algorithm, use mep_solve instead.
+#'
+#' @param breaks numerical
+#' @param browse logical, stop within function for inspection
+#' @param fig plot diagnostic
+#' @return a list with fields fun, breaks, and slopes
 approx_entropy <- function(breaks=seq(from=.Machine$double.eps, to=1, length.out=4), browse=FALSE, fig=FALSE) {
 	stopifnot(all(is.finite(c(breaks,-log(breaks)*breaks)))) 
 	stopifnot(all(!is.na(c(breaks,-log(breaks)*breaks)))) 
