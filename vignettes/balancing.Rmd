@@ -19,26 +19,32 @@ Now one idea to deal with this problem is to reweigh / post-stratify the survey 
 
 The idea stems from a paper and R package `ebal` by [Jens Hainmueller](https://doi.org/10.1093/pan/mpr025). The package `WeightIt` seems to have implemented a similar method using `optim`. Also the famous `survey` package seems to have functions (`postStratify`, `calibrate`) that achieve what I am trying to do here.
 
+An interesting read on this topic is [this](https://www.surveypractice.org/article/2809-post-stratification-or-non-response-adjustment).
+
 ## Required Packages
 
-In addition to `fd.maxent`, we need the `knitr` package for displaying tables.
+In addition to `fd.maxent`, we need the `survey` package for comparing our results with a serious implementation.
 
 ```{r pkg, echo=TRUE}
 library(fd.maxent, quietly=TRUE)
-library(knitr, quietly=TRUE)
+library(survey, quietly=TRUE)
 ```
 
 ## The Data
 
 Let's build some fake grant data. As structural variables we consider the size of the
-grantee, the sector, and the project type. As survey response rate we assume 26%, and we
-simulate a lower response rate from SME.
+grantee, the sector, and the project type. As survey response rate we assume 26%. We
+simulate a lower response rate from SME. To make things more interesting, we also add an interaction between `sector` and `size`, assuming that in "sector A" there are only few SME (think steel industry or oil refineries).
 
 ```{r data, echo=TRUE}
 grants <- data.frame(
 	id=paste0("id",1:1000),
-	size=c(rep("SME", 700), rep("LE", 300)),
-	sector=sample(paste("Sector", LETTERS[1:4]), 1000, replace=TRUE),
+	size=c(rep("SME", 700), rep("LE", 300))
+) |> transform(
+	sector=ifelse(size=="SME", 
+		sample(paste("Sector", LETTERS[1:4]), 1000, replace=TRUE, prob=c(0.1, 0.3, 0.3, 0.3)),
+		sample(paste("Sector", LETTERS[1:4]), 1000, replace=TRUE)
+	),
 	prj_type=sample(paste("Type", 1:3), 1000, replace=1000)
 )
 svy <- data.frame(
@@ -52,6 +58,12 @@ The synthetic data exhibit the mentioned distortion by design:
 ```{r distort, echo=TRUE}
 table(grants$size) |> proportions()
 table(svy$size) |> proportions()
+```
+
+Also the interaction between `size` and `sector` can be found:
+
+```{r interact, echo=TRUE}
+xtabs(~size+sector, grants) |> proportions(margin=1)
 ```
 
 ## Setting up the Problem
@@ -147,3 +159,53 @@ svy <- transform(svy, weight=balance(svy, grants, c("size", "sector", "prj_type"
 ```
 
 Use at your own risk. Especially for small `nrow(svy)` and/or larger distortions this method might fail without clearly indicating it.
+
+Let's compare it with `survey::rake`. I followed this [helpful blogpost](https://tophcito.blogspot.com/2014/04/survey-computing-your-own-post.html) and came up with:
+
+```{r survey}
+library(survey, quietly=TRUE)
+svy_d <- survey::svydesign(ids=~1, data=svy)
+size_dist <- table(grants[,"size"]) |> 
+	proportions() |> as.data.frame() |>
+	transform(Freq=Freq*nrow(svy))
+colnames(size_dist)[1] <- "size"
+sector_dist <- table(grants[,"sector"]) |> 
+	proportions() |> as.data.frame() |>
+	transform(Freq=Freq*nrow(svy))
+colnames(sector_dist)[1] <- "sector"
+prj_type_dist <- table(grants[,"prj_type"]) |> 
+	proportions() |> as.data.frame() |>
+	transform(Freq=Freq*nrow(svy))
+colnames(prj_type_dist)[1] <- "prj_type"
+svy_d <- survey::rake(design=svy_d,
+   sample.margins = list(~size, ~sector, ~prj_type),
+   population.margins = list(size_dist, sector_dist, prj_type_dist)
+)
+plot(weights(svy_d), svy[,"weight"], ylab="MaxEnt", xlab="survey::rake")
+```
+
+Looks like both methods produce the same result. This is very re-assuring.
+
+The famous `survey` package also offers `survey::calibrate` function, which allows us to incorporate information on interactions (e.g. the `~size+sector` interaction) of the structural variables. The function has a `bound` parameter (but fails to converge if I set it), and a `trim` parameter that works perfectly.
+
+In that case, the comparison of the weights shows some differences.
+
+```{r calib}
+svy_d <- survey::svydesign(ids=~1, data=svy)
+size_sector <- xtabs(~size+sector, grants) |> proportions()
+size_sector <- size_sector*260
+size_prj_type <- xtabs(~size+prj_type, grants) |> proportions()
+size_prj_type <- size_prj_type*260
+sector_prj_type <- xtabs(~sector+prj_type, grants) |> proportions()
+sector_prj_type <- sector_prj_type*260
+svy_d <- survey::calibrate(
+	svy_d, list(~size+sector, ~size+prj_type, ~sector+prj_type), 
+    population=list(size_sector, size_prj_type, sector_prj_type),
+	trim=c(0.3,3),
+	calfun="raking"
+)
+plot(weights(svy_d), svy[,"weight"], ylab="MaxEnt", xlab="survey::calibrate(xtabs,trim)")
+```
+
+It should be possible to include the interactions as constraints in the maximum entropy formulation, but it requires still some work to include inequalities as constraints. So I end this example here, having learnt some directions I want to go with the maximum entropy solver (inequality constraints / slack variables) and having learnt to use some functions from the `survey` package, which seems definitely the way to go.
+

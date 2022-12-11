@@ -11,7 +11,7 @@ License: GPL (>= 3)
 Imports:
     BB, Matrix, RSQLite, lpSolveAPI
 Suggests:
-	tinytest, knitr, rmarkdown, ggplot2, ggmosaic, readxl
+	tinytest, knitr, rmarkdown, ggplot2, ggmosaic, readxl, survey
 VignetteBuilder: knitr
 LazyLoad: yes
 RoxygenNote: 7.2.1

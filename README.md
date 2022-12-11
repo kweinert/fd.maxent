@@ -57,10 +57,14 @@ This project is free software as in GPL-3. See LICENSE for details.
 
 Next steps are 
 
-- [ ] synthetic `balancing` example which reweighs a survey due to known population parameters to remedy nonresponse-bias
-- [ ] Implement solver using the `highs` package
-- [ ] Implement interior point algorithm
+- [x] synthetic `balancing` example which reweighs a survey due to known population parameters to remedy nonresponse-bias
+- [ ] inequality constraints
+- [ ] logistic regression example (Titanic dataset)
+- [ ] Poisson regression example 
 - [ ] `lotto` example that estimates pick probabilities from observed quotas
+- [ ] document the LP approach via a vignette
+- [ ] Implement interior point algorithm
+- [ ] Implement solver using the `highs` package
 - [ ] Comparison of algorithms
 
 Please note that this is a one-man side-project, so don't expect anything soon.
