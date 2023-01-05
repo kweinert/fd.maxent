@@ -4,9 +4,10 @@ author: "Karsten W."
 date: "2022-12-10"
 output: html_document
 vignette: >
-  %\VignetteIndexEntry{Reweighting}
+  %\VignetteIndexEntry{balancing}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
+bibliography: "literature.bib"
 ---
 
 ## The Problem
@@ -58,12 +59,6 @@ The synthetic data exhibit the mentioned distortion by design:
 ```{r distort, echo=TRUE}
 table(grants$size) |> proportions()
 table(svy$size) |> proportions()
-```
-
-Also the interaction between `size` and `sector` can be found:
-
-```{r interact, echo=TRUE}
-xtabs(~size+sector, grants) |> proportions(margin=1)
 ```
 
 ## Setting up the Problem

@@ -1,20 +1,44 @@
----
-title: "Literature"
-author: "Karsten W."
-date: "2022-12-10"
-output: html_document
-vignette: >
-  %\VignetteIndexEntry{Literature}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
----
 
-## N. Agmon, Y. Alhassid, R. D. Levine, An algorithm for finding the distribution of maximal entropy, Journal of Computational Physics,30 , 250-258, 1979 
+@article{agmon1979,
+title = {An algorithm for finding the distribution of maximal entropy},
+journal = {Journal of Computational Physics},
+volume = {30},
+number = {2},
+pages = {250-258},
+year = {1979},
+issn = {0021-9991},
+doi = {https://doi.org/10.1016/0021-9991(79)90102-5},
+url = {https://www.sciencedirect.com/science/article/pii/0021999179901025},
+author = {N Agmon and Y Alhassid and R.D Levine},
+abstract = {An algorithm for determining the distribution of maximal entropy subject to constraints is presented. The method provides an alternative to the conventional procedure which requires the numerical solution of a set of implicit nonlinear equations for the Lagrange multipliers. Here they are determined by seeking a minimum of a concave function, a procedure which readily lends itself to computational work. The program also incorporates two preliminary stages. The first verifies that the constraints are linearly independent and the second checks that a feasible solution exists.}
+}
 
-## A. Golan, G. Judge, D. Miller, Maximum entropy econometrics: robust estimation with limited data, Wiley, New York, 1996 
+@article{chen2010,
+author = {Chen, Badong and Hu, Jinchun and Zhu, Yu},
+year = {2010},
+month = {01},
+pages = {114 - 122},
+title = {Computing maximum entropy densities: A hybrid approach},
+volume = {4},
+journal = {Signal Processing: An International Journal (SPIJ)},
+abstract = {This paper proposes a hybrid method to calculate the maximum entropy (MaxEnt) density subject to known moment constraints, which combines the linear equation (LE) method and Newton's method together. The new approach is more computationally efficient than ordinary Newton's method as it usually takes fewer Newton iterations to reach the final solution. Compared with the simple LE method, the hybrid algorithm will produce a more accurate solution. Numerical examples confirm the excellent performance of the proposed method.}
+}
 
-## B. Chen, J. Hu, Y.Zhu, Computing maximum entropy densities: A hybrid approach, Signal Processing: An International Journal, 4(2), 114-122, 2010 
-
-## D. Ormoneit, H. White, An efficient algorithm to compute maximum entropy densities, Econometrics reviews, 18(2), 127-140, 1999
+@article{ormoneit1999,
+author = {D. Ormoneit and H. White },
+title = {An efficient algorithm to compute maximum entropy densities},
+journal = {Econometric Reviews},
+volume = {18},
+number = {2},
+pages = {127-140},
+year  = {1999},
+publisher = {Taylor & Francis},
+doi = {10.1080/07474939908800436},
+URL = { https://doi.org/10.1080/07474939908800436 },
+eprint = { https://doi.org/10.1080/07474939908800436 },
+abstract = { We describe an algorithm to efficiently compute maximum entropy densities, i.e. densities maximizing the Shannon entropy - under a set of constraints . Our method is based on an algorithm by Zellner and Highfield, which has been found not to converge under a variety of circumstances. To demonstrate that our method overcomes these difficulties, we conduct numerous experiments for the special case g i (x) = x i , n = 4. An extensive table of results for this case and computer code are available on the World Wide Web }
+}
 
 ## Aharon Ben-Tal, Arkadi Nemirovski: Lectures on Modern Convex Optimizsation
+
+## A. Golan, G. Judge, D. Miller, Maximum entropy econometrics: robust estimation with limited data, Wiley, New York, 1996 

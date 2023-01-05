@@ -7,6 +7,7 @@ vignette: >
   %\VignetteIndexEntry{Europawahl}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
+bibliography: "literature.bib"
 ---
 
 Estimating a joint probability density from marginal distributions is an ill-posed problem and cannot be solved without additional assumptions. One approach is to calculate the maximum entropy distribution with the margins as contraints. This approach garantuees the "most uninformative" distribution given the constraints as the result. 

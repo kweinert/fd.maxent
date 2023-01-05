@@ -41,9 +41,14 @@ vignette("simple", package="fd.maxent")
 
 When the problems become more complex, some help from mapping the problem into a numerical formulation is desireable. The functions `set`, `variab`, `index` and `vec2df` are the approach taken in this package and introduced in the `mapping` vignette.
 
-Then you could look through the examples:
+## Examples
 
-* `europawahl19` is an example which combines several surveys to estimate voting behaviour with respect to socialdemographic variables.
+This repository digests some papers and books I read on maximum entropy. You can find the reading list including reviews on [wyrms.de](https://www.wyrms.de/list/123/s/maximum-entropy-principle) and in the `literature.bib` file in the `vignettes` folder.
+
+Here is a list of worked examples:
+
+* `vignette("europawahl19")` is an example which combines several surveys to estimate voting behaviour with respect to socialdemographic variables.
+* `vignette("balancing")` is an example which uses the maximum entropy principle to mitigate the survey reponse bias.
 
 ## Support
 
