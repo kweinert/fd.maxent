@@ -1,0 +1,132 @@
+---
+title: "Example: Entropy Experiments"
+author: "Karsten W."
+date: "2023-01-06"
+output: html_document
+vignette: >
+  %\VignetteIndexEntry{demystified}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: "literature.bib"
+---
+
+This vignettes aims to get acquainted with the entropy concept using an example from
+Arieh Ben-Naim's "Entropy Demystified" (I wrote a [short review](https://factbased.blogspot.com/2021/07/book-review-arieh-ben-naim-entropy.html) 
+on this book).
+
+The example goes like this: Assume you start with `n_dices` dices, all with the six on top. Now repeat the following procedure `n_iter` times: 
+
+    1) choose randomly a dice 
+    2) roll that dice
+
+We watch how the sum of the dices evolve. 
+
+```{r}
+n_dices <- 100
+n_iter <- 7000
+dices <- matrix(NA, ncol=n_iter, nrow=n_dices)
+dices[,1] <- rep(6, n_dices)
+for (i in 2:n_iter) {
+	idx <- sample(1:n_dices, 1) # choose one dice
+	dices[,i] <- dices[,i-1]
+	dices[idx,i] <- sample(6, 1) # roll that dice
+}
+plot(colSums(dices), type="l", ylim=c(1*n_dices, 6*n_dices), ylab="dices' sum", xlab="iteration", bty="n")
+abline(h=3.5*n_dices, col="darkred", lwd=0.7, lty=2)
+```
+
+The sum of the dices starts with `6 n_dices` and, if the procedure is carried out often enough, the sum of the numbers on the dices approaches a value `3.5 n_dices` quite stably. It is very likely that the value `6 n_dices` will not be reached again. This is an illustration of the "arrow of time".
+
+This simulation / thought experiment can be used to model many physical phenomena including the second law of thermodynamics. In real-life application it is often distinguished between  specfic events, here the numbers on the individual dices. Specific events are not directly measurable in general. Directly measurable are so-called "dim" events, here the sum of the numbers on the dices.  
+
+Enter entropy. We consider the probability space `{p1, ..., p6}` that represent the share of the dices that have the number `1, ..., 6` on their top. The entropy is defined as 
+`-sum(p_i*log(p_i) | i=1,...,6)` and can be calculated after each repetition.
+
+```{r}
+calc_entropy <- function(x, cutat=1.e-8) {
+	probs <- table(x) |> proportions() |> as.vector()
+	probs <- probs[probs>cutat]
+	sum(-log(probs)*probs)
+}
+entr <- apply(dices, 2, calc_entropy)
+unif <- rep(1/6, 6)
+entr_unif <- -sum(log(unif)*unif)
+plot(entr, type="l", ylab="entropy", xlab="iteration", bty="n")
+abline(h=entr_unif, col="darkred", lwd=0.7, lty=2)
+```
+
+The chart shows that the entropy increases rapidly at the beginning, and then stagnates. The maximum entropy is attained when the distribution is uniform. When re-run with much larger n_dices, the entropy hardly reduces.
+
+The amazing thing about maximum entropy is that it is applicable to a lot of processes and that it is possible to estimate the equilibrium distribution without simulation.
+
+## Color Mixing
+
+As a more tangible example, consider a jar with two compartments `A` and `B`. In the beginning, in `A` are `n_a` particles of one color, e.g. red, and in `B` there a `n_b` particles of another color, e.g. blue.
+
+When the experiment begins, a small hole between `A` and `B` opens. In each iteration, one random particle from `A` gets exchanged with one random particle from `B`. 
+
+Let's do it:
+
+```{r}
+n_a <- 1500
+n_b <- 1500
+col_x <- "#FF0000" # red
+col_y <- "#0000FF" # blue
+n_iter <- 3000
+distr <- matrix(NA, ncol=n_iter, nrow=n_a+n_b)
+distr[,1] <- c(rep(col_x, n_a), rep(col_y, n_b))
+for (i in 2:n_iter) {
+	idx_a <- sample(n_a, 1) # choose one particle from A
+	idx_b <- sample(n_b, 1) # choose one particle from B
+	distr[,i] <- distr[,i-1]
+	
+	# exchange
+	tmp <- distr[n_a+idx_b, i]
+	distr[n_a+idx_b,i] <- distr[idx_a, i]
+	distr[idx_a,i] <- tmp 
+}
+```
+
+Let's check how the entropy evolves. We consider the probability space `{p_a, p_b}` which denotes the share of `col_x` in the compartments `A` und `B`. Let's calculate the entropy:
+
+```{r}
+calc_entropy <- function(x, cutat=1.e-8) {
+	probs <- c(sum(head(x,n_a)==col_x), sum(tail(x,n_b)==col_x)) / n_a
+	#browser()
+	probs <- probs[probs>cutat] # we don't want log(0)
+	sum(-log(probs)*probs)
+}
+entr <- apply(distr, 2, calc_entropy)
+unif <- c(0.5, 0.5)
+entr_unif <- -sum(log(unif)*unif)
+plot(entr, type="l", ylab="entropy", xlab="iteration", bty="n")
+abline(h=entr_unif, col="darkred", lwd=0.7, lty=2)
+```
+
+As with the dices, the entropy increases rapidly until it reaches the theoretical maximum. Let's mix the colors using the great `colorspace` package:
+
+```{r}
+#install.packages("colorspace")
+library(colorspace)
+calc_colors <- function(x) {
+	freqs <- table(x)
+	if(length(freqs)==1) return(names(freqs))
+	cols <- names(freqs) |> hex2RGB()
+	alpha <- freqs |> as.vector() |> proportions() |> tail(1)
+	mixcolor(alpha, cols[1,], cols[2,], "XYZ") |> hex()
+}
+jars <- rbind(
+	apply(distr[1:n_a,], 2, calc_colors),
+	apply(distr[(n_a+1):nrow(distr),], 2, calc_colors)
+)
+plot(NULL, ylim=c(0, n_a+n_b), xlim=c(0, n_iter), bty="n", ylab="jar", xlab="iteration")
+for (i in 1:2) for (j in 1:n_iter) rect(
+	xleft=j-1, xright=j, 
+	ybottom=if(i==1) 0 else n_a, 
+	ytop=if(i==1) n_a else n_a+n_b, 
+    col=jars[i,j], border = NA
+)
+```
+
+If you choose `n_a, n_b`, and `n_iter` large enough, the simulation should show the same color in both jars. If we are only interested in the equilibrium colors, we can skip the simulation part and use the maximum entropy solver in this `fd.maxent` package and calculate the distribution directly. See `vignette("simple")` to get started.
+
